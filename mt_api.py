@@ -146,11 +146,11 @@ def user_follow(user_id):
     print messages
     return jsonify(messages)
 
-'''Insert a message into table message'''
+'''Insert a message into table message: json data: author_id, text'''
 @app.route('/messages/<user_id>/add_message', methods = ['POST'])
 def add_message(user_id):
     if not request.json:
-        return 400
+        return make_error(400, "Invalid data", "Other error")
     data = request.json
 
     if data:
@@ -166,11 +166,11 @@ def add_message(user_id):
         db.commit()
     return jsonify(data)
 
-'''Insert follow'''
+'''Insert follow: json data: who_id, whom_id'''
 @app.route('/users/<user_id>/add_follow', methods = ['POST'])
 def add_follow(user_id):
     if not request.json:
-        return 400
+        return make_error(400, "Invalid data", "Other error")
     data = request.json
 
     if data:
@@ -181,14 +181,17 @@ def add_follow(user_id):
         db.commit()
     return jsonify(data)
 
-'''User Sign up'''
+'''User Sign up: json data: username, email, pw_hash, pw_hash2'''
 @app.route('/users/Sign_up', methods = ['POST'])
 def Sign_up():
     if not request.json:
-        return 400
+        return make_error(400, "Invalid data", "Other error")
     data = request.json
 
     if data:
+        if not data["username"] or not data["email"] or not data["pw_hash"] \
+            or not data["pw_hash2"] or data["pw_hash"] != data["pw_hash2"]:
+            return make_error(400,"Invalid data","Missing or incorrect username/email/password")
         pw = generate_password_hash(data["pw_hash"])
         db = get_db()
         db.execute('''insert into user (username, email, pw_hash)
