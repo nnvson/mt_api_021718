@@ -98,8 +98,11 @@ def query_db(query, args=(), one=False):
     return (rv[0] if rv else None) if one else rv
 
 '''return all messages from all users '''
-@app.route('/messages', methods=['GET'])
+@app.route('/messages', methods=['POST', 'GET', 'PUT', 'DELETE'])
 def get_messages():
+    if request.method != 'GET':
+        return make_error(405, "Invalid Request", "This API accepts only GET request")
+
     messages = query_db('''
             select message.text, user.username from message, user
             where message.author_id = user.user_id
@@ -111,8 +114,11 @@ def get_messages():
     return jsonify(messages)
 
 '''return all messages form the user <user_id>'''
-@app.route('/messages/<user_id>', methods =['GET'])
+@app.route('/messages/<user_id>', methods =['POST', 'GET', 'PUT', 'DELETE'])
 def get_message_user(user_id):
+    if request.method != 'GET':
+        return make_error(405, "Invalid Request", "This API accepts only GET request")
+
     messages = query_db('''
         select message.text, user.username from message, user
         where message.author_id = user.user_id and user.user_id = ? ''',
@@ -123,8 +129,11 @@ def get_message_user(user_id):
     return jsonify(messages)
 
 '''return all users that are followers of the user <user_id>'''
-@app.route('/users/<user_id>/followers', methods = ['GET'])
+@app.route('/users/<user_id>/followers', methods = ['POST', 'GET', 'PUT', 'DELETE'])
 def user_followers(user_id):
+    if request.method != 'GET':
+        return make_error(405, "Invalid Request", "This API accepts only GET request")
+
     messages = query_db('''
         select u1.username as followee, u2.username as follower from user u1, follower f, user u2
         where u1.user_id = f.who_id and u2.user_id = f.whom_id and u1.user_id = ? ''',
@@ -135,8 +144,11 @@ def user_followers(user_id):
     return jsonify(messages)
 
 '''return all users that the user <user_id> is following'''
-@app.route('/users/<user_id>/follow', methods = ['GET'])
+@app.route('/users/<user_id>/follow', methods = ['POST', 'GET', 'PUT', 'DELETE'])
 def user_follow(user_id):
+    if request.method != 'GET':
+        return make_error(405, "Invalid Request", "This API accepts only GET request")
+
     messages = query_db('''
         select u1.username as followee, u2.username as follower from user u1, follower f, user u2
         where u1.user_id = f.who_id and u2.user_id = f.whom_id and u1.user_id = ? ''',
@@ -147,10 +159,13 @@ def user_follow(user_id):
     return jsonify(messages)
 
 '''Insert a message into table message: json data: author_id, text'''
-@app.route('/messages/<user_id>/add_message', methods = ['POST'])
+@app.route('/messages/<user_id>/add_message', methods = ['POST', 'GET', 'PUT', 'DELETE'])
 def add_message(user_id):
     if not request.json:
         return make_error(400, "Invalid data", "Other error")
+    if request.method != 'POST':
+        return make_error(405, "Invalid Request", "This API accepts only POST request")
+
     data = request.json
 
     if data:
@@ -166,14 +181,21 @@ def add_message(user_id):
         db.commit()
     return jsonify(data)
 
-'''Insert follow: json data: who_id, whom_id'''
-@app.route('/users/<user_id>/add_follow', methods = ['POST'])
+'''Insert follow: json data: whom_id'''
+@app.route('/users/<user_id>/add_follow', methods = ['POST', 'GET', 'PUT', 'DELETE'])
 def add_follow(user_id):
     if not request.json:
         return make_error(400, "Invalid data", "Other error")
+    if request.method != 'POST':
+        return make_error(405, "Invalid Request", "This API accepts only POST request")
+
     data = request.json
 
     if data:
+        '''Check duplicate'''
+        cur = query_db('select count(*) from follower where who_id = ? and whom_id = ?', [user_id, data["whom_id"]], one=True)
+        if cur[0] > 0:
+            return make_error(422, "Invalid data", "Data duplicated")
         db = get_db()
         db.execute('''insert into follower (who_id, whom_id)
             values (?, ?)''',
@@ -181,17 +203,25 @@ def add_follow(user_id):
         db.commit()
     return jsonify(data)
 
-'''User Sign up: json data: username, email, pw_hash, pw_hash2'''
-@app.route('/users/Sign_up', methods = ['POST'])
+'''User Sign up: json data: username, email, pw_hash, pw_hash2 (confirrmed pw'''
+@app.route('/users/Sign_up', methods = ['POST', 'GET', 'PUT', 'DELETE'])
 def Sign_up():
     if not request.json:
         return make_error(400, "Invalid data", "Other error")
+    if request.method != 'POST':
+        return make_error(405, "Invalid Request", "This API accepts only POST request")
+
     data = request.json
 
     if data:
         if not data["username"] or not data["email"] or not data["pw_hash"] \
             or not data["pw_hash2"] or data["pw_hash"] != data["pw_hash2"]:
             return make_error(400,"Invalid data","Missing or incorrect username/email/password")
+        '''check duplicate'''
+        cur = query_db('select count(*) from user where username = ?', [data["username"]], one=True)
+        if cur[0] > 0:
+            return make_error(422, "Invalid data", "Duplicated Username")
+
         pw = generate_password_hash(data["pw_hash"])
         db = get_db()
         db.execute('''insert into user (username, email, pw_hash)
