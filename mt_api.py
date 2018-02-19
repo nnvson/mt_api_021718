@@ -225,6 +225,33 @@ def remove_follow(user_id):
         db.commit()
     return jsonify(data)
 
+'''Change password: json data: pw_hash, pw_hash2'''
+@app.route('/users/<user_id>/change_password', methods = ['POST', 'GET', 'PUT', 'DELETE'])
+def change_password(user_id):
+    if not request.json:
+        return make_error(400, "Invalid data", "Other error")
+    if request.method != 'PUT':
+        return make_error(405, "Invalid Request", "This API accepts only PUT request")
+
+    data = request.json
+
+    if data:
+        '''Check user_id existing'''
+        cur = query_db('select count(*) from user where user_id = ?', [user_id], one=True)
+        if cur[0] == 0:
+            return make_error(404, "No Data Available", "user_id not found")
+        '''check password and confirmed password are equal'''
+        if data["pw_hash"] != data["pw_hash2"]:
+            return make_error(422, "Invalid Data", "password and confirmed password not consistent")
+        db = get_db()
+        pw = generate_password_hash(data['pw_hash'])
+        db.execute('''update user
+        set pw_hash = ?
+        where user_id = ?''',
+        [pw, user_id])
+        db.commit()
+    return jsonify(data)
+
 '''User Sign up: json data: username, email, pw_hash, pw_hash2 (confirrmed pw'''
 @app.route('/users/Sign_up', methods = ['POST', 'GET', 'PUT', 'DELETE'])
 def Sign_up():
