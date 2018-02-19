@@ -203,6 +203,28 @@ def add_follow(user_id):
         db.commit()
     return jsonify(data)
 
+'''Unfollow: json data: whom_id'''
+@app.route('/users/<user_id>/unfollow', methods = ['POST', 'GET', 'PUT', 'DELETE'])
+def remove_follow(user_id):
+    if not request.json:
+        return make_error(400, "Invalid data", "Other error")
+    if request.method != 'DELETE':
+        return make_error(405, "Invalid Request", "This API accepts only DELETE request")
+
+    data = request.json
+
+    if data:
+        '''Check existing'''
+        cur = query_db('select count(*) from follower where who_id = ? and whom_id = ?', [user_id, data["whom_id"]], one=True)
+        if cur[0] == 0:
+            return make_error(404, "No Data Available", "user_id or whom_id not found")
+        db = get_db()
+        db.execute('''delete from follower
+        where who_id = ? and whom_id = ?''',
+         [user_id, data["whom_id"]])
+        db.commit()
+    return jsonify(data)
+
 '''User Sign up: json data: username, email, pw_hash, pw_hash2 (confirrmed pw'''
 @app.route('/users/Sign_up', methods = ['POST', 'GET', 'PUT', 'DELETE'])
 def Sign_up():
