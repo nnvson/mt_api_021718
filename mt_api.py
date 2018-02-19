@@ -214,7 +214,7 @@ def remove_follow(user_id):
     data = request.json
 
     if data:
-        '''Check existing'''
+        '''Check who_id and whom_id existing'''
         cur = query_db('select count(*) from follower where who_id = ? and whom_id = ?', [user_id, data["whom_id"]], one=True)
         if cur[0] == 0:
             return make_error(404, "No Data Available", "user_id or whom_id not found")
